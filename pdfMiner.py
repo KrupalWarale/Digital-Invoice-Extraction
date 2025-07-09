@@ -1,5 +1,5 @@
 
-# Import extract_pages to get layout of each page
+# Import extract_pages to get layout of each pa
 from pdfminer.high_level import extract_pages
 # Import LTTextContainer to identify text elements
 from pdfminer.layout import LTTextContainer
