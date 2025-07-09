@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pdf2xml SYSTEM "pdf2xml.dtd">
+
+<pdf2xml producer="poppler" version="24.02.0">
+<page number="1" position="absolute" top="0" left="0" height="1263" width="892">
+	<fontspec id="0" size="15" family="Helvetica" color="#000000"/>
+	<fontspec id="1" size="12" family="Helvetica" color="#000000"/>
+	<fontspec id="2" size="12" family="Helvetica" color="#000000"/>
+	<fontspec id="3" size="12" family="Helvetica" color="#ffffff"/>
+	<fontspec id="4" size="12" family="Helvetica" color="#ffffff"/>
+<image top="38" left="654" width="207" height="66" src="abc-1_1.jpg"/>
+<image top="71" left="390" width="101" height="101" src="abc-1_2.jpg"/>
+<text top="113" left="659" width="194" height="11" font="1"><b>Customer Support: 1800-889-9991</b></text>
+<text top="134" left="678" width="175" height="11" font="1"><b>Email:customercare@ajio.com</b></text>
+<text top="155" left="715" width="139" height="11" font="1"><b>RRL PAN: AABCR1718E</b></text>
+<text top="154" left="36" width="154" height="11" font="1"><b>GSTIN:27AABCR1718E1ZP</b></text>
+<text top="33" left="413" width="65" height="11" font="1"><b>Tax Invoice</b></text>
+<text top="54" left="389" width="122" height="11" font="1"><b>Original for Recipient</b></text>
+<text top="54" left="35" width="159" height="11" font="1"><b>RELIANCE RETAIL LIMITED</b></text>
+<text top="37" left="33" width="100" height="11" font="1"><b>Seller/Consignor:</b></text>
+<text top="73" left="35" width="352" height="11" font="2">Reliance Retail Limited, Building/Shed No200, Ind Log park pvt</text>
+<text top="87" left="35" width="16" height="11" font="2">ltd,</text>
+<text top="101" left="35" width="145" height="11" font="2">KHALAPUR, MAH  410203</text>
+<text top="180" left="35" width="209" height="11" font="1"><b>Tax Invoice No: AF24MAH105621215</b></text>
+<text top="180" left="751" width="102" height="11" font="1"><b>Dated: 25-07-2024</b></text>
+<text top="229" left="36" width="149" height="11" font="2">B 301, Navin Anand Society</text>
+<text top="247" left="36" width="212" height="11" font="2">Sainagar, Kondhwa, near Salve Garden</text>
+<text top="264" left="36" width="107" height="11" font="2">PUNE MAH 411048</text>
+<text top="207" left="35" width="143" height="11" font="1"><b>Recipient Address: Rohit</b></text>
+<text top="207" left="548" width="167" height="11" font="2">Mobile No.           : 9834183825</text>
+<text top="220" left="548" width="117" height="11" font="2">State Code          :  27</text>
+<text top="234" left="548" width="126" height="11" font="2">Place Of Supply  : MAH</text>
+<text top="248" left="548" width="194" height="11" font="2">Customer GSTIN: UNREGISTERED</text>
+<text top="262" left="548" width="117" height="11" font="2">Customer PAN    : NA</text>
+<text top="299" left="45" width="102" height="11" font="3">ORDER NUMBER:</text>
+<text top="299" left="174" width="83" height="11" font="3">FN1886509503</text>
+<text top="299" left="602" width="135" height="11" font="4"><b>Mode Of Payment: COD</b></text>
+<text top="355" left="803" width="29" height="11" font="1"><b>Total</b></text>
+<text top="369" left="803" width="30" height="11" font="1"><b> (Rs.)</b></text>
+<text top="355" left="437" width="30" height="11" font="1"><b>  Unit</b></text>
+<text top="369" left="437" width="29" height="11" font="1"><b>Price</b></text>
+<text top="355" left="309" width="25" height="11" font="1"><b>Item</b></text>
+<text top="369" left="311" width="20" height="11" font="1"><b>Qty</b></text>
+<text top="362" left="89" width="67" height="11" font="1"><b>Item Details</b></text>
+<text top="362" left="223" width="59" height="11" font="1"><b>HSN Code</b></text>
+<text top="355" left="501" width="29" height="11" font="1"><b>Disc.</b></text>
+<text top="369" left="504" width="23" height="11" font="1"><b>(Rs)</b></text>
+<text top="355" left="646" width="26" height="11" font="1"><b>  Net</b></text>
+<text top="369" left="631" width="56" height="11" font="1"><b>Price(Rs.)</b></text>
+<text top="355" left="720" width="31" height="11" font="1"><b>   Tax</b></text>
+<text top="369" left="708" width="53" height="11" font="1"><b>Amt.(Rs.)</b></text>
+<text top="355" left="371" width="31" height="11" font="1"><b>  Item</b></text>
+<text top="369" left="358" width="57" height="11" font="1"><b>MRP (Rs.)</b></text>
+<text top="355" left="550" width="69" height="11" font="1"><b>BankDiscou</b></text>
+<text top="369" left="566" width="38" height="11" font="1"><b>nt(Rs.)</b></text>
+<text top="422" left="311" width="21" height="14" font="0">1.0</text>
+<text top="422" left="790" width="54" height="14" font="0">2949.00</text>
+<text top="396" left="39" width="162" height="14" font="0">Trekerstar AXNU Sports</text>
+<text top="413" left="39" width="158" height="14" font="0">Shoes,Grey, Brand size</text>
+<text top="431" left="39" width="113" height="14" font="0">8,469585104003</text>
+<text top="413" left="424" width="54" height="14" font="0">2999.16</text>
+<text top="422" left="496" width="38" height="14" font="0">500.0</text>
+<text top="422" left="632" width="54" height="14" font="0">2499.16</text>
+<text top="422" left="712" width="46" height="14" font="0">449.84</text>
+<text top="422" left="219" width="67" height="14" font="0">64041190</text>
+<text top="476" left="227" width="50" height="14" font="0">996819</text>
+<text top="477" left="640" width="38" height="14" font="0">40.68</text>
+<text top="470" left="64" width="118" height="14" font="0">Convenience Fee</text>
+<text top="476" left="720" width="29" height="14" font="0">7.32</text>
+<text top="476" left="799" width="38" height="14" font="0">48.00</text>
+<text top="422" left="363" width="46" height="14" font="0">4599.0</text>
+<text top="422" left="575" width="21" height="14" font="0">0.0</text>
+<text top="329" left="45" width="169" height="11" font="3">Carrier Name:    XPRESSBEES</text>
+<text top="329" left="602" width="177" height="11" font="3">AWB Number:  13670419362148</text>
+<text top="790" left="30" width="53" height="11" font="1"><b>Total Tax</b></text>
+<text top="739" left="76" width="40" height="11" font="2">996819</text>
+<text top="739" left="182" width="23" height="11" font="2">9.00</text>
+<text top="739" left="263" width="23" height="11" font="2">3.66</text>
+<text top="739" left="345" width="23" height="11" font="2">9.00</text>
+<text top="739" left="425" width="23" height="11" font="2">3.66</text>
+<text top="739" left="504" width="23" height="11" font="2">0.00</text>
+<text top="739" left="583" width="23" height="11" font="2">0.00</text>
+<text top="739" left="678" width="23" height="11" font="2">0.00</text>
+<text top="739" left="788" width="23" height="11" font="2">7.32</text>
+<text top="763" left="69" width="53" height="11" font="2">64041190</text>
+<text top="763" left="181" width="23" height="11" font="2">9.00</text>
+<text top="763" left="257" width="37" height="11" font="2">224.92</text>
+<text top="763" left="345" width="23" height="11" font="2">9.00</text>
+<text top="763" left="418" width="37" height="11" font="2">224.92</text>
+<text top="763" left="504" width="23" height="11" font="2">0.00</text>
+<text top="763" left="583" width="23" height="11" font="2">0.00</text>
+<text top="763" left="678" width="23" height="11" font="2">0.00</text>
+<text top="763" left="781" width="37" height="11" font="2">449.84</text>
+<text top="658" left="311" width="17" height="11" font="1"><b>1.0</b></text>
+<text top="658" left="636" width="43" height="11" font="1"><b>2539.84</b></text>
+<text top="658" left="499" width="30" height="11" font="1"><b>500.0</b></text>
+<text top="658" left="798" width="37" height="11" font="1"><b>2997.0</b></text>
+<text top="658" left="715" width="37" height="11" font="1"><b>457.16</b></text>
+<text top="658" left="89" width="36" height="11" font="1"><b>Total :</b></text>
+<text top="658" left="575" width="17" height="11" font="1"><b>0.0</b></text>
+<text top="855" left="33" width="700" height="11" font="2">1. Products being sent under this invoice are for personal consumption of the customer and not for re-sale or  commercial purposes.</text>
+<text top="896" left="33" width="50" height="11" font="2">E. &amp; O.E.</text>
+<text top="924" left="33" width="629" height="11" font="2">An Electronic document issued in accordance with the provisions of the Information Technology Act, 2000 (21 of 2000)</text>
+<text top="991" left="45" width="179" height="11" font="1"><b>CIN: U01100MH1999PLC120563</b></text>
+<text top="978" left="45" width="474" height="11" font="2">Regd Office: 3rd floor, Court House, Lokmanya Tilak Marg, Dhobi Talao, Mumbai 400002</text>
+<text top="958" left="781" width="51" height="11" font="2">Page 1 of</text>
+<text top="991" left="386" width="123" height="11" font="2">www.relianceretail.com</text>
+<text top="958" left="833" width="10" height="11" font="2"> 1</text>
+<text top="949" left="45" width="686" height="11" font="2">Principal place of business: Reliance Retail Ltd, Reliance Corporate Park, 5, TTC industrial Area, Thane Belapur Road, Ghansoli,</text>
+<text top="963" left="45" width="113" height="11" font="2">400701 Navi Mumbai</text>
+<text top="676" left="354" width="79" height="11" font="1"><b>Tax Summary</b></text>
+<text top="725" left="67" width="59" height="11" font="1"><b>HSN Code</b></text>
+<text top="698" left="227" width="33" height="11" font="1"><b>CGST</b></text>
+<text top="698" left="367" width="77" height="11" font="1"><b>SGST/UTGST</b></text>
+<text top="698" left="550" width="28" height="11" font="1"><b>IGST</b></text>
+<text top="725" left="675" width="29" height="11" font="1"><b>Cess</b></text>
+<text top="725" left="755" width="88" height="11" font="1"><b>Total Tax Value</b></text>
+<text top="721" left="173" width="40" height="11" font="1"><b>Rate %</b></text>
+<text top="721" left="253" width="45" height="11" font="1"><b>Amount</b></text>
+<text top="721" left="337" width="40" height="11" font="1"><b>Rate %</b></text>
+<text top="721" left="414" width="45" height="11" font="1"><b>Amount</b></text>
+<text top="721" left="496" width="40" height="11" font="1"><b>Rate %</b></text>
+<text top="721" left="573" width="45" height="11" font="1"><b>Amount</b></text>
+<text top="816" left="30" width="109" height="11" font="1"><b>Total Invoice Value</b></text>
+<text top="838" left="30" width="434" height="11" font="1"><b>Total in Words : Two Thousand Nine Hundred and Ninty Seven Rupees Only</b></text>
+<text top="819" left="781" width="37" height="11" font="1"><b>2997.0</b></text>
+<text top="796" left="418" width="37" height="11" font="1"><b>228.58</b></text>
+<text top="796" left="583" width="23" height="11" font="1"><b>0.00</b></text>
+<text top="796" left="678" width="23" height="11" font="1"><b>0.00</b></text>
+<text top="796" left="780" width="37" height="11" font="1"><b>457.16</b></text>
+<text top="796" left="257" width="37" height="11" font="1"><b>228.58</b></text>
+</page>
+</pdf2xml>
