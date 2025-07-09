@@ -1,5 +1,3 @@
-doc = fitz.open("abc.pdf")
-
 import fitz  # Import PyMuPDF for PDF processing
 
 # Open the PDF file
