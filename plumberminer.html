@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OCR Coordinate Visualizer - PdfMiner</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f0f0f0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        input[type="file"] {
+            margin-right: 10px;
+        }
+        button {
+            padding: 8px 16px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .legend {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 15px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .legend-box {
+            width: 20px;
+            height: 20px;
+            border: 2px solid;
+        }
+        .canvas-container {
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            overflow: auto;
+            max-height: 800px;
+            background: white;
+        }
+        canvas {
+            display: block;
+            cursor: crosshair;
+        }
+        .info {
+            margin-top: 10px;
+            padding: 10px;
+            background: #e9ecef;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>OCR Coordinate Visualizer - PdfMiner</h1>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label>Canvas Size:</label>
+                <input type="number" id="canvasWidth" value="900" min="100" max="2000" placeholder="Width">
+                <span>x</span>
+                <input type="number" id="canvasHeight" value="1000" min="100" max="2000" placeholder="Height">
+            </div>
+            <button onclick="updateCanvasSize()">Update Canvas</button>
+            <button onclick="clearCanvas()">Clear Canvas</button>
+            <button onclick="loadSampleData()">Load Sample Data</button>
+            <div class="control-group">
+                <label>Shift Red Boxes (px):</label>
+                <input type="number" id="shiftAmount" value="1" min="-100" max="100">
+                <button onclick="shiftRedBoxes(-1)">Shift Up</button>
+                <button onclick="shiftRedBoxes(1)">Shift Down</button>
+            </div>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-box" style="background-color: rgba(0,255,0,0.2); border-color: green;"></div>
+                <span>Table Coordinates (Green)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-box" style="background-color: rgba(255,0,0,0.2); border-color: red;"></div>
+                <span>Text Coordinates (Red - PdfMiner)</span>
+            </div>
+        </div>
+
+        <div class="canvas-container">
+            <canvas id="coordinateCanvas"></canvas>
+        </div>
+
+        <div class="info">
+            <p><strong>Instructions:</strong></p>
+            <ul>
+                <li>Green boxes represent table cell coordinates from your OCR table detection (PdfPlumber)</li>
+                <li>Red boxes represent text bounding boxes from your OCR text extraction (PdfMiner)</li>
+                <li>Click "Load Sample Data" to visualize your provided coordinate data</li>
+                <li>Adjust canvas size if needed to fit your document dimensions</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('coordinateCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let tableCoordinates = [];
+        let textCoordinates = [];
+
+        function initCanvas() {
+            const width = document.getElementById('canvasWidth').value;
+            const height = document.getElementById('canvasHeight').value;
+            canvas.width = width;
+            canvas.height = height;
+            canvas.style.width = width + 'px';
+            canvas.style.height = height + 'px';
+            redrawCanvas();
+        }
+
+        function updateCanvasSize() {
+            initCanvas();
+        }
+
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            tableCoordinates = [];
+            textCoordinates = [];
+        }
+
+        function drawBox(x1, y1, x2, y2, color, alpha = 0.3) {
+            // Draw filled rectangle
+            ctx.fillStyle = color.replace('rgb', 'rgba').replace(')', `, ${alpha})`);
+            ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
+            
+            // Draw border
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+        }
+
+        function parseCoordinateString(coordStr) {
+            // Parse strings like "('20.14, 20.00'), ('574.76, 114.00')"
+            const matches = coordStr.match(/\(([^)]+)\)/g);
+            if (matches && matches.length >= 2) {
+                const point1 = matches[0].replace(/[()'"]/g, '').split(',').map(x => parseFloat(x.trim()));
+                const point2 = matches[1].replace(/[()'"]/g, '').split(',').map(x => parseFloat(x.trim()));
+                return {
+                    x1: point1[0],
+                    y1: point1[1],
+                    x2: point2[0],
+                    y2: point2[1]
+                };
+            }
+            return null;
+        }
+
+        function parsePdfMinerCoordinates(coordStr) {
+            // Parse strings like "('Text', x0, y0, x1, y1)"
+            const matches = coordStr.match(/\(\'(.+?)\',\s*([\d.]+),\s*([\d.]+),\s*([\d.]+),\s*([\d.]+)\)/);
+            if (matches && matches.length === 6) {
+                const canvasHeight = parseFloat(document.getElementById('canvasHeight').value);
+                const x1 = parseFloat(matches[2]);
+                const y1 = parseFloat(matches[3]);
+                const x2 = parseFloat(matches[4]);
+                const y2 = parseFloat(matches[5]);
+
+                // Invert Y coordinates
+                return {
+                    x1: x1,
+                    y1: canvasHeight - y2, // Top-left Y for drawing
+                    x2: x2,
+                    y2: canvasHeight - y1  // Bottom-right Y for drawing
+                };
+            }
+            return null;
+        }
+
+        function loadSampleData() {
+            // ALL table coordinates from your data (Table 1 & Table 2) from plumberxml.html
+            const sampleTableData = [
+                // Table 1 coordinates
+                "('20.14, 20.00'), ('574.76, 114.00')",
+                "('20.14, 114.00'), ('574.76, 133.50')",
+                "('20.14, 133.50'), ('574.76, 192.00')",
+                "('20.14, 192.00'), ('574.76, 212.00')",
+                "('20.14, 212.00'), ('574.76, 231.08')",
+                "('20.14, 231.08'), ('142.00, 258.00')",
+                "('142.00, 231.08'), ('193.67, 258.00')",
+                "('193.67, 231.08'), ('233.67, 258.00')",
+                "('233.67, 231.08'), ('281.00, 258.00')",
+                "('281.00, 231.08'), ('322.12, 258.00')",
+                "('322.12, 231.08'), ('365.25, 258.00')",
+                "('365.25, 231.08'), ('413.67, 258.00')",
+                "('413.67, 231.08'), ('464.67, 258.00')",
+                "('464.67, 231.08'), ('514.67, 258.00')",
+                "('514.67, 231.08'), ('574.76, 258.00')",
+                "('20.14, 258.00'), ('574.76, 434.00')",
+                "('20.14, 434.00'), ('193.67, 449.00')",
+                "('193.67, 434.00'), ('233.67, 449.00')",
+                "('233.67, 434.00'), ('322.12, 449.00')",
+                "('322.12, 434.00'), ('365.25, 449.00')",
+                "('365.25, 434.00'), ('413.67, 449.00')",
+                "('413.67, 434.00'), ('464.67, 449.00')",
+                "('464.67, 434.00'), ('514.67, 449.00')",
+                "('514.67, 434.00'), ('574.76, 449.00')",
+                
+                // Table 2 coordinates
+                "('20.14, 460.00'), ('108.00, 491.00')",
+                "('108.00, 460.00'), ('217.00, 476.00')",
+                "('217.00, 460.00'), ('322.12, 476.00')",
+                "('322.12, 460.00'), ('428.00, 476.00')",
+                "('428.00, 460.00'), ('491.00, 491.00')",
+                "('491.00, 460.00'), ('574.76, 491.00')",
+                "('108.00, 476.00'), ('150.00, 491.00')",
+                "('150.00, 476.00'), ('217.00, 491.00')",
+                "('217.00, 476.00'), ('259.00, 491.00')",
+                "('259.00, 476.00'), ('322.12, 491.00')",
+                "('322.12, 476.00'), ('365.25, 491.00')",
+                "('365.25, 476.00'), ('428.00, 491.00')",
+                "('20.14, 491.00'), ('108.00, 506.15')",
+                "('108.00, 491.00'), ('150.00, 506.15')",
+                "('150.00, 491.00'), ('217.00, 506.15')",
+                "('217.00, 491.00'), ('259.00, 506.15')",
+                "('259.00, 491.00'), ('322.12, 506.15')",
+                "('322.12, 491.00'), ('365.25, 506.15')",
+                "('365.25, 491.00'), ('428.00, 506.15')",
+                "('428.00, 491.00'), ('491.00, 506.15')",
+                "('491.00, 491.00'), ('574.76, 506.15')",
+                "('108.00, 506.15'), ('150.00, 523.17')",
+                "('150.00, 506.15'), ('217.00, 523.17')",
+                "('217.00, 506.15'), ('259.00, 523.17')",
+                "('259.00, 506.15'), ('322.12, 523.17')",
+                "('322.12, 506.15'), ('365.25, 523.17')",
+                "('365.25, 506.15'), ('428.00, 523.17')",
+                "('428.00, 506.15'), ('491.00, 523.17')",
+                "('491.00, 506.15'), ('574.76, 523.17')",
+                "('20.14, 523.17'), ('150.00, 542.00')",
+                "('150.00, 523.17'), ('217.00, 542.00')",
+                "('217.00, 523.17'), ('259.00, 542.00')",
+                "('259.00, 523.17'), ('322.12, 542.00')",
+                "('322.12, 523.17'), ('365.25, 542.00')",
+                "('365.25, 523.17'), ('428.00, 542.00')",
+                "('428.00, 523.17'), ('491.00, 542.00')",
+                "('491.00, 523.17'), ('574.76, 542.00')",
+                "('20.14, 542.00'), ('491.00, 556.00')",
+                "('491.00, 542.00'), ('574.76, 556.00')",
+                "('20.14, 556.00'), ('574.76, 568.00')",
+                "('20.14, 568.00'), ('574.76, 628.67')",
+                "('20.14, 628.67'), ('574.76, 676.00')"
+            ];
+
+            // ALL text coordinates from pdfminer_coordinates_output.txt
+            const sampleTextData = [
+                "('Tax Invoice', 275.21, 812.91, 318.79, 820.91)",
+                "('Seller/Consignor:', 22.00, 810.07, 88.68, 818.07)",
+                "('RELIANCE RETAIL LIMITED', 23.00, 798.91, 129.22, 806.91)",
+                "('Original for Recipient', 259.32, 798.57, 340.67, 806.57)",
+                "('Reliance  Retail  Limited,  Building/Shed  No200,  Ind  Log  park  pvt', 23.00, 785.91, 257.98, 793.91)",
+                "('ltd,', 23.00, 776.60, 33.67, 784.60)",
+                "('KHALAPUR, MAH  410203', 23.00, 767.29, 119.48, 775.29)",
+                "('Customer Support: 1800-889-9991', 439.63, 759.23, 569.00, 767.23)",
+                "('Email:customercare@ajio.com', 452.27, 745.57, 569.00, 753.57)",
+                "('GSTIN:27AABCR1718E1ZP', 24.00, 731.91, 126.69, 739.91)",
+                "('RRL PAN: AABCR1718E', 476.55, 731.57, 569.00, 739.57)",
+                "('Tax Invoice No: AF24MAH105621215', 23.00, 714.57, 162.16, 722.57)",
+                "('Dated: 25-07-2024', 500.98, 714.57, 569.00, 722.57)",
+                "('Recipient Address: Rohit', 23.00, 696.91, 118.57, 704.91)",
+                "('Mobile No.           : 9834183825', 365.00, 696.91, 476.62, 704.91)",
+                "('State Code          :  27', 365.00, 687.60, 442.83, 695.60)",
+                "('B 301, Navin Anand Society', 24.00, 681.91, 123.61, 689.91)",
+                "('Place Of Supply  : MAH', 365.00, 678.29, 449.03, 686.29)",
+                "('Sainagar, Kondhwa, near Salve Garden', 24.00, 670.13, 165.41, 678.13)",
+                "('Customer GSTIN: UNREGISTERED', 365.00, 668.98, 494.35, 676.98)",
+                "('Customer PAN    : NA', 365.00, 659.66, 442.80, 667.66)",
+                "('PUNE MAH 411048', 24.00, 658.34, 95.14, 666.34)",
+                "('ORDER NUMBER:', 30.00, 635.57, 98.00, 643.57)",
+                "('FN1886509503', 116.00, 635.57, 171.14, 643.57)",
+                "('Mode Of Payment: COD', 401.00, 635.57, 491.23, 643.57)",
+                "('Carrier Name:    XPRESSBEES', 30.00, 615.57, 142.92, 623.57)",
+                "('AWB Number:  13670419362148', 401.00, 615.57, 518.84, 623.57)",
+                "('Item', 205.78, 597.73, 222.23, 605.73)",
+                "('Item', 247.05, 597.73, 267.95, 605.73)",
+                "('Unit', 291.00, 597.73, 311.00, 605.73)",
+                "('Disc.', 333.94, 597.73, 353.06, 605.73)",
+                "('BankDiscou', 366.88, 597.73, 413.11, 605.73)",
+                "('Net', 430.83, 597.73, 448.17, 605.73)",
+                "('Tax', 479.77, 597.73, 500.23, 605.73)",
+                "('Total', 535.44, 597.73, 554.55, 605.73)",
+                "('Item Details', 59.55, 593.07, 104.45, 601.07)",
+                "('HSN Code', 148.44, 593.07, 187.55, 601.07)",
+                "('Qty', 207.33, 588.41, 220.67, 596.41)",
+                "('MRP (Rs.)', 238.61, 588.41, 276.39, 596.41)",
+                "('Price', 291.22, 588.41, 310.79, 596.41)",
+                "('(Rs)', 335.72, 588.41, 351.27, 596.41)",
+                "('nt(Rs.)', 377.34, 588.41, 402.67, 596.41)",
+                "('Price(Rs.)', 420.83, 588.41, 458.17, 596.41)",
+                "('Amt.(Rs.)', 472.22, 588.41, 507.77, 596.41)",
+                "('(Rs.)', 535.00, 588.41, 555.00, 596.41)",
+                "('Trekerstar AXNU Sports', 26.00, 568.93, 133.80, 578.93)",
+                "('Shoes,Grey, Brand size', 26.00, 557.29, 131.60, 567.29)",
+                "('2999.16', 282.93, 557.29, 319.07, 567.29)",
+                "('64041190', 145.76, 551.47, 190.24, 561.47)",
+                "('1.0', 207.05, 551.47, 220.95, 561.47)",
+                "('4599.0', 242.21, 551.47, 272.79, 561.47)",
+                "('500.0', 330.99, 551.47, 356.01, 561.47)",
+                "('0.0', 383.05, 551.47, 396.95, 561.47)",
+                "('2499.16', 421.43, 551.47, 457.57, 561.47)",
+                "('449.84', 474.71, 551.47, 505.29, 561.47)",
+                "('2949.00', 526.93, 551.47, 563.07, 561.47)",
+                "('8,469585104003', 26.00, 545.65, 101.06, 555.65)",
+                "('Convenience Fee', 42.82, 519.65, 121.19, 529.65)",
+                "('996819', 151.32, 515.47, 184.68, 525.47)",
+                "('7.32', 480.27, 515.47, 499.73, 525.47)",
+                "('48.00', 532.49, 515.47, 557.51, 525.47)",
+                "('40.68', 426.99, 514.97, 452.01, 524.97)",
+                "('Total :', 59.00, 396.07, 83.00, 404.07)",
+                "('1.0', 207.44, 396.07, 218.56, 404.07)",
+                "('500.0', 332.49, 396.07, 352.51, 404.07)",
+                "('0.0', 383.44, 396.07, 394.56, 404.07)",
+                "('2539.84', 424.04, 396.07, 452.95, 404.07)",
+                "('457.16', 476.77, 396.07, 501.23, 404.07)",
+                "('2997.0', 531.77, 396.07, 556.23, 404.07)",
+                "('Tax Summary', 236.00, 383.91, 288.46, 391.91)",
+                "('CGST', 151.39, 369.57, 173.61, 377.57)",
+                "('SGST/UTGST', 244.44, 369.57, 295.56, 377.57)",
+                "('IGST', 366.66, 369.57, 385.33, 377.57)",
+                "('Rate %', 115.66, 354.07, 142.33, 362.07)",
+                "('Amount', 168.39, 354.07, 198.61, 362.07)",
+                "('Rate %', 224.66, 354.07, 251.33, 362.07)",
+                "('Amount', 275.89, 354.07, 306.11, 362.07)",
+                "('Rate %', 330.66, 354.07, 357.33, 362.07)",
+                "('Amount', 381.89, 354.07, 412.11, 362.07)",
+                "('HSN Code', 44.94, 351.23, 84.05, 359.23)",
+                "('Cess', 449.94, 351.23, 469.06, 359.23)",
+                "('Total Tax Value', 503.66, 351.23, 562.35, 359.23)",
+                "('996819', 50.66, 341.91, 77.35, 349.91)",
+                "('9.00', 121.22, 341.91, 136.79, 349.91)",
+                "('3.66', 175.22, 341.91, 190.79, 349.91)",
+                "('9.00', 230.22, 341.91, 245.79, 349.91)",
+                "('3.66', 283.22, 341.91, 298.79, 349.91)",
+                "('0.00', 336.22, 341.91, 351.79, 349.91)",
+                "('0.00', 388.72, 341.91, 404.29, 349.91)",
+                "('0.00', 451.72, 341.91, 467.29, 349.91)",
+                "('7.32', 525.22, 341.91, 540.79, 349.91)",
+                "('64041190', 46.21, 325.91, 81.79, 333.91)",
+                "('9.00', 120.72, 325.91, 136.29, 333.91)",
+                "('224.92', 171.27, 325.91, 195.73, 333.91)",
+                "('9.00', 230.22, 325.91, 245.79, 333.91)",
+                "('224.92', 278.77, 325.91, 303.23, 333.91)",
+                "('0.00', 336.22, 325.91, 351.79, 333.91)",
+                "('0.00', 388.72, 325.91, 404.29, 333.91)",
+                "('0.00', 451.72, 325.91, 467.29, 333.91)",
+                "('449.84', 520.77, 325.91, 545.23, 333.91)",
+                "('Total Tax', 20.00, 307.91, 55.12, 315.91)",
+                "('228.58', 171.27, 304.07, 195.73, 312.07)",
+                "('228.58', 278.77, 304.07, 303.23, 312.07)",
+                "('0.00', 388.72, 304.07, 404.29, 312.07)",
+                "('0.00', 451.72, 304.07, 467.29, 312.07)",
+                "('457.16', 520.27, 304.07, 544.73, 312.07)",
+                "('Total Invoice Value', 20.00, 290.91, 92.47, 298.91)",
+                "('2997.0', 520.77, 288.57, 545.23, 296.57)",
+                "('Total in Words : Two Thousand Nine Hundred and Ninty Seven Rupees Only', 20.00, 275.91, 309.38, 283.91)",
+                "('1. Products being sent under this invoice are for personal consumption of the customer and not for re-sale or  commercial purposes.', 22.00, 264.91, 488.42, 272.91)",
+                "('E. & O.E.', 22.00, 236.98, 55.35, 244.98)",
+                "('An Electronic document issued in accordance with the provisions of the Information Technology Act, 2000 (21 of 2000)', 22.00, 218.35, 441.31, 226.35)",
+                "('Principal place of business: Reliance Retail Ltd, Reliance Corporate Park, 5, TTC industrial Area, Thane Belapur Road, Ghansoli,', 30.00, 201.91, 487.07, 209.91)",
+                "('Page 1 of', 520.75, 195.91, 555.00, 203.91)",
+                "('1', 555.00, 195.91, 561.67, 203.91)",
+                "('400701 Navi Mumbai', 30.00, 192.60, 105.58, 200.60)",
+                "('Regd Office: 3rd floor, Court House, Lokmanya Tilak Marg, Dhobi Talao, Mumbai 400002', 30.00, 182.91, 345.68, 190.91)",
+                "('CIN: U01100MH1999PLC120563', 30.00, 173.91, 149.60, 181.91)",
+                "('www.relianceretail.com', 257.38, 173.91, 339.61, 181.91)"
+            ];
+
+            // Clear existing data
+            tableCoordinates = [];
+            textCoordinates = [];
+
+            // Parse table coordinates
+            sampleTableData.forEach(coordStr => {
+                const coords = parseCoordinateString(coordStr);
+                if (coords) {
+                    tableCoordinates.push(coords);
+                }
+            });
+
+            // Parse text coordinates
+            sampleTextData.forEach(coordStr => {
+                const coords = parsePdfMinerCoordinates(coordStr);
+                if (coords) {
+                    textCoordinates.push(coords);
+                }
+            });
+
+            redrawCanvas();
+        }
+
+        function redrawCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw table coordinates as green boxes
+            tableCoordinates.forEach(coord => {
+                drawBox(coord.x1, coord.y1, coord.x2, coord.y2, 'rgb(0, 255, 0)', 0.3);
+            });
+            
+            // Draw text coordinates as red boxes
+            textCoordinates.forEach(coord => {
+                drawBox(coord.x1, coord.y1, coord.x2, coord.y2, 'rgb(255, 0, 0)', 0.3);
+            });
+        }
+
+        function shiftRedBoxes(direction) {
+            const shiftAmount = parseFloat(document.getElementById('shiftAmount').value);
+            if (isNaN(shiftAmount) || shiftAmount === 0) return;
+
+            textCoordinates = textCoordinates.map(coord => {
+                return {
+                    x1: coord.x1,
+                    y1: coord.y1 + shiftAmount * direction,
+                    x2: coord.x2,
+                    y2: coord.y2 + shiftAmount * direction
+                };
+            });
+            redrawCanvas();
+        }
+
+        // Initialize canvas on page load
+        window.onload = function() {
+            initCanvas();
+        };
+    </script>
+    </body>
+    <body>
+        Source	Width (px)	Height (px)	Aspect Ratio (W/H)
+PDF (Green - PdfPlumber)	575	676	≈ 0.85
+PdfMiner (Red)	569	821	≈ 0.69
+    </body>
+</body>
+</html> 
