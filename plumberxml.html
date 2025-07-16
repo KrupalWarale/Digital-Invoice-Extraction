@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OCR Coordinate Visualizer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f0f0f0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        input[type="file"] {
+            margin-right: 10px;
+        }
+        button {
+            padding: 8px 16px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .legend {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 15px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .legend-box {
+            width: 20px;
+            height: 20px;
+            border: 2px solid;
+        }
+        .canvas-container {
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            overflow: auto;
+            max-height: 800px;
+            background: white;
+        }
+        canvas {
+            display: block;
+            cursor: crosshair;
+        }
+        .info {
+            margin-top: 10px;
+            padding: 10px;
+            background: #e9ecef;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>OCR Coordinate Visualizer</h1>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label>Canvas Size:</label>
+                <input type="number" id="canvasWidth" value="900" min="100" max="2000">
+                <span>x</span>
+                <input type="number" id="canvasHeight" value="1000" min="100" max="2000">
+            </div>
+            <button onclick="updateCanvasSize()">Update Canvas</button>
+            <button onclick="clearCanvas()">Clear Canvas</button>
+            <button onclick="loadSampleData()">Load Sample Data</button>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-box" style="background-color: rgba(0,255,0,0.2); border-color: green;"></div>
+                <span>Table Coordinates (Green)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-box" style="background-color: rgba(255,0,0,0.2); border-color: red;"></div>
+                <span>Text Coordinates (Red)</span>
+            </div>
+        </div>
+
+        <div class="canvas-container">
+            <canvas id="coordinateCanvas"></canvas>
+        </div>
+
+        <div class="info">
+            <p><strong>Instructions:</strong></p>
+            <ul>
+                <li>Green boxes represent table cell coordinates from your OCR table detection</li>
+                <li>Red boxes represent text bounding boxes from your OCR text extraction</li>
+                <li>Click "Load Sample Data" to visualize your provided coordinate data</li>
+                <li>Adjust canvas size if needed to fit your document dimensions</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('coordinateCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let tableCoordinates = [];
+        let textCoordinates = [];
+
+        function initCanvas() {
+            const width = document.getElementById('canvasWidth').value;
+            const height = document.getElementById('canvasHeight').value;
+            canvas.width = width;
+            canvas.height = height;
+            canvas.style.width = width + 'px';
+            canvas.style.height = height + 'px';
+            redrawCanvas();
+        }
+
+        function updateCanvasSize() {
+            initCanvas();
+        }
+
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            tableCoordinates = [];
+            textCoordinates = [];
+        }
+
+        function drawBox(x1, y1, x2, y2, color, alpha = 0.3) {
+            // Draw filled rectangle
+            ctx.fillStyle = color.replace('rgb', 'rgba').replace(')', `, ${alpha})`);
+            ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
+            
+            // Draw border
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+        }
+
+        function parseCoordinateString(coordStr) {
+            // Parse strings like "('20.14, 20.00'), ('574.76, 114.00')"
+            const matches = coordStr.match(/\(([^)]+)\)/g);
+            if (matches && matches.length >= 2) {
+                const point1 = matches[0].replace(/[()'"]/g, '').split(',').map(x => parseFloat(x.trim()));
+                const point2 = matches[1].replace(/[()'"]/g, '').split(',').map(x => parseFloat(x.trim()));
+                return {
+                    x1: point1[0],
+                    y1: point1[1],
+                    x2: point2[0],
+                    y2: point2[1]
+                };
+            }
+            return null;
+        }
+
+        function parseTextCoordinates(text) {
+            // Parse text like "'Tax Invoice': (x0:413.00, y0:33.00, x1:478.00, y1:44.00)"
+            const match = text.match(/\(x0:([\d.]+),\s*y0:([\d.]+),\s*x1:([\d.]+),\s*y1:([\d.]+)\)/);
+            if (match) {
+                return {
+                    x1: parseFloat(match[1]),
+                    y1: parseFloat(match[2]),
+                    x2: parseFloat(match[3]),
+                    y2: parseFloat(match[4])
+                };
+            }
+            return null;
+        }
+
+        function loadSampleData() {
+            // ALL table coordinates from your data (Table 1 & Table 2)
+            const sampleTableData = [
+                // Table 1 coordinates
+                "('20.14, 20.00'), ('574.76, 114.00')",
+                "('20.14, 114.00'), ('574.76, 133.50')",
+                "('20.14, 133.50'), ('574.76, 192.00')",
+                "('20.14, 192.00'), ('574.76, 212.00')",
+                "('20.14, 212.00'), ('574.76, 231.08')",
+                "('20.14, 231.08'), ('142.00, 258.00')",
+                "('142.00, 231.08'), ('193.67, 258.00')",
+                "('193.67, 231.08'), ('233.67, 258.00')",
+                "('233.67, 231.08'), ('281.00, 258.00')",
+                "('281.00, 231.08'), ('322.12, 258.00')",
+                "('322.12, 231.08'), ('365.25, 258.00')",
+                "('365.25, 231.08'), ('413.67, 258.00')",
+                "('413.67, 231.08'), ('464.67, 258.00')",
+                "('464.67, 231.08'), ('514.67, 258.00')",
+                "('514.67, 231.08'), ('574.76, 258.00')",
+                "('20.14, 258.00'), ('574.76, 434.00')",
+                "('20.14, 434.00'), ('193.67, 449.00')",
+                "('193.67, 434.00'), ('233.67, 449.00')",
+                "('233.67, 434.00'), ('322.12, 449.00')",
+                "('322.12, 434.00'), ('365.25, 449.00')",
+                "('365.25, 434.00'), ('413.67, 449.00')",
+                "('413.67, 434.00'), ('464.67, 449.00')",
+                "('464.67, 434.00'), ('514.67, 449.00')",
+                "('514.67, 434.00'), ('574.76, 449.00')",
+                
+                // Table 2 coordinates
+                "('20.14, 460.00'), ('108.00, 491.00')",
+                "('108.00, 460.00'), ('217.00, 476.00')",
+                "('217.00, 460.00'), ('322.12, 476.00')",
+                "('322.12, 460.00'), ('428.00, 476.00')",
+                "('428.00, 460.00'), ('491.00, 491.00')",
+                "('491.00, 460.00'), ('574.76, 491.00')",
+                "('108.00, 476.00'), ('150.00, 491.00')",
+                "('150.00, 476.00'), ('217.00, 491.00')",
+                "('217.00, 476.00'), ('259.00, 491.00')",
+                "('259.00, 476.00'), ('322.12, 491.00')",
+                "('322.12, 476.00'), ('365.25, 491.00')",
+                "('365.25, 476.00'), ('428.00, 491.00')",
+                "('20.14, 491.00'), ('108.00, 506.15')",
+                "('108.00, 491.00'), ('150.00, 506.15')",
+                "('150.00, 491.00'), ('217.00, 506.15')",
+                "('217.00, 491.00'), ('259.00, 506.15')",
+                "('259.00, 491.00'), ('322.12, 506.15')",
+                "('322.12, 491.00'), ('365.25, 506.15')",
+                "('365.25, 491.00'), ('428.00, 506.15')",
+                "('428.00, 491.00'), ('491.00, 506.15')",
+                "('491.00, 491.00'), ('574.76, 506.15')",
+                "('108.00, 506.15'), ('150.00, 523.17')",
+                "('150.00, 506.15'), ('217.00, 523.17')",
+                "('217.00, 506.15'), ('259.00, 523.17')",
+                "('259.00, 506.15'), ('322.12, 523.17')",
+                "('322.12, 506.15'), ('365.25, 523.17')",
+                "('365.25, 506.15'), ('428.00, 523.17')",
+                "('428.00, 506.15'), ('491.00, 523.17')",
+                "('491.00, 506.15'), ('574.76, 523.17')",
+                "('20.14, 523.17'), ('150.00, 542.00')",
+                "('150.00, 523.17'), ('217.00, 542.00')",
+                "('217.00, 523.17'), ('259.00, 542.00')",
+                "('259.00, 523.17'), ('322.12, 542.00')",
+                "('322.12, 523.17'), ('365.25, 542.00')",
+                "('365.25, 523.17'), ('428.00, 542.00')",
+                "('428.00, 523.17'), ('491.00, 542.00')",
+                "('491.00, 523.17'), ('574.76, 542.00')",
+                "('20.14, 542.00'), ('491.00, 556.00')",
+                "('491.00, 542.00'), ('574.76, 556.00')",
+                "('20.14, 556.00'), ('574.76, 568.00')",
+                "('20.14, 568.00'), ('574.76, 628.67')",
+                "('20.14, 628.67'), ('574.76, 676.00')"
+            ];
+
+            // ALL text coordinates from your data
+            const sampleTextData = [
+                "'Tax Invoice': (x0:413.00, y0:33.00, x1:478.00, y1:44.00)",
+                "'Seller/Consignor:': (x0:33.00, y0:37.00, x1:133.00, y1:48.00)",
+                "'RELIANCE RETAIL LIMITED': (x0:35.00, y0:54.00, x1:194.00, y1:65.00)",
+                "'Original for Recipient': (x0:389.00, y0:54.00, x1:511.00, y1:65.00)",
+                "'Reliance Retail Limited, Building/Shed No200, Ind Log park pvt': (x0:35.00, y0:73.00, x1:387.00, y1:84.00)",
+                "'ltd,': (x0:35.00, y0:87.00, x1:51.00, y1:98.00)",
+                "'KHALAPUR, MAH  410203': (x0:35.00, y0:101.00, x1:180.00, y1:112.00)",
+                "'Customer Support: 1800-889-9991': (x0:659.00, y0:113.00, x1:853.00, y1:124.00)",
+                "'Email:customercare@ajio.com': (x0:678.00, y0:134.00, x1:853.00, y1:145.00)",
+                "'GSTIN:27AABCR1718E1ZP': (x0:36.00, y0:154.00, x1:190.00, y1:165.00)",
+                "'RRL PAN: AABCR1718E': (x0:715.00, y0:155.00, x1:854.00, y1:166.00)",
+                "'Tax Invoice No: AF24MAH105621215': (x0:35.00, y0:180.00, x1:244.00, y1:191.00)",
+                "'Dated: 25-07-2024': (x0:751.00, y0:180.00, x1:853.00, y1:191.00)",
+                "'Recipient Address: Rohit': (x0:35.00, y0:207.00, x1:178.00, y1:218.00)",
+                "'Mobile No.           : 9834183825': (x0:548.00, y0:207.00, x1:715.00, y1:218.00)",
+                "'State Code          :  27': (x0:548.00, y0:220.00, x1:665.00, y1:231.00)",
+                "'B 301, Navin Anand Society': (x0:36.00, y0:229.00, x1:185.00, y1:240.00)",
+                "'Place Of Supply  : MAH': (x0:548.00, y0:234.00, x1:674.00, y1:245.00)",
+                "'Sainagar, Kondhwa, near Salve Garden': (x0:36.00, y0:247.00, x1:248.00, y1:258.00)",
+                "'Customer GSTIN: UNREGISTERED': (x0:548.00, y0:248.00, x1:742.00, y1:259.00)",
+                "'Customer PAN    : NA': (x0:548.00, y0:262.00, x1:665.00, y1:273.00)",
+                "'PUNE MAH 411048': (x0:36.00, y0:264.00, x1:143.00, y1:275.00)",
+                "'ORDER NUMBER:': (x0:45.00, y0:299.00, x1:147.00, y1:310.00)",
+                "'FN1886509503': (x0:174.00, y0:299.00, x1:257.00, y1:310.00)",
+                "'Mode Of Payment: COD': (x0:602.00, y0:299.00, x1:737.00, y1:310.00)",
+                "'Carrier Name:    XPRESSBEES': (x0:45.00, y0:329.00, x1:214.00, y1:340.00)",
+                "'AWB Number:  13670419362148': (x0:602.00, y0:329.00, x1:779.00, y1:340.00)",
+                "'Item': (x0:309.00, y0:355.00, x1:334.00, y1:366.00)",
+                "'Item': (x0:371.00, y0:355.00, x1:402.00, y1:366.00)",
+                "'Unit': (x0:437.00, y0:355.00, x1:467.00, y1:366.00)",
+                "'Disc.': (x0:501.00, y0:355.00, x1:530.00, y1:366.00)",
+                "'BankDiscou': (x0:550.00, y0:355.00, x1:619.00, y1:366.00)",
+                "'Net': (x0:646.00, y0:355.00, x1:672.00, y1:366.00)",
+                "'Tax': (x0:720.00, y0:355.00, x1:751.00, y1:366.00)",
+                "'Total': (x0:803.00, y0:355.00, x1:832.00, y1:366.00)",
+                "'Item Details': (x0:89.00, y0:362.00, x1:156.00, y1:373.00)",
+                "'HSN Code': (x0:223.00, y0:362.00, x1:282.00, y1:373.00)",
+                "'Qty': (x0:311.00, y0:369.00, x1:331.00, y1:380.00)",
+                "'MRP (Rs.)': (x0:358.00, y0:369.00, x1:415.00, y1:380.00)",
+                "'Price': (x0:437.00, y0:369.00, x1:466.00, y1:380.00)",
+                "'(Rs)': (x0:504.00, y0:369.00, x1:527.00, y1:380.00)",
+                "'nt(Rs.)': (x0:566.00, y0:369.00, x1:604.00, y1:380.00)",
+                "'Price(Rs.)': (x0:631.00, y0:369.00, x1:687.00, y1:380.00)",
+                "'Amt.(Rs.)': (x0:708.00, y0:369.00, x1:761.00, y1:380.00)",
+                "'(Rs.)': (x0:803.00, y0:369.00, x1:833.00, y1:380.00)",
+                "'Trekerstar AXNU Sports': (x0:39.00, y0:396.00, x1:201.00, y1:410.00)",
+                "'Shoes,Grey, Brand size': (x0:39.00, y0:413.00, x1:197.00, y1:427.00)",
+                "'2999.16': (x0:424.00, y0:413.00, x1:478.00, y1:427.00)",
+                "'64041190': (x0:219.00, y0:422.00, x1:286.00, y1:436.00)",
+                "'1.0': (x0:311.00, y0:422.00, x1:332.00, y1:436.00)",
+                "'4599.0': (x0:363.00, y0:422.00, x1:409.00, y1:436.00)",
+                "'500.0': (x0:496.00, y0:422.00, x1:534.00, y1:436.00)",
+                "'0.0': (x0:575.00, y0:422.00, x1:596.00, y1:436.00)",
+                "'2499.16': (x0:632.00, y0:422.00, x1:686.00, y1:436.00)",
+                "'449.84': (x0:712.00, y0:422.00, x1:758.00, y1:436.00)",
+                "'2949.00': (x0:790.00, y0:422.00, x1:844.00, y1:436.00)",
+                "'8,469585104003': (x0:39.00, y0:431.00, x1:152.00, y1:445.00)",
+                "'Convenience Fee': (x0:64.00, y0:470.00, x1:182.00, y1:484.00)",
+                "'996819': (x0:227.00, y0:476.00, x1:277.00, y1:490.00)",
+                "'7.32': (x0:720.00, y0:476.00, x1:749.00, y1:490.00)",
+                "'48.00': (x0:799.00, y0:476.00, x1:837.00, y1:490.00)",
+                "'40.68': (x0:640.00, y0:477.00, x1:678.00, y1:491.00)",
+                "'Total :': (x0:89.00, y0:658.00, x1:125.00, y1:669.00)",
+                "'1.0': (x0:311.00, y0:658.00, x1:328.00, y1:669.00)",
+                "'500.0': (x0:499.00, y0:658.00, x1:529.00, y1:669.00)",
+                "'0.0': (x0:575.00, y0:658.00, x1:592.00, y1:669.00)",
+                "'2539.84': (x0:636.00, y0:658.00, x1:679.00, y1:669.00)",
+                "'457.16': (x0:715.00, y0:658.00, x1:752.00, y1:669.00)",
+                "'2997.0': (x0:798.00, y0:658.00, x1:835.00, y1:669.00)",
+                "'Tax Summary': (x0:354.00, y0:676.00, x1:433.00, y1:687.00)",
+                "'CGST': (x0:227.00, y0:698.00, x1:260.00, y1:709.00)",
+                "'SGST/UTGST': (x0:367.00, y0:698.00, x1:444.00, y1:709.00)",
+                "'IGST': (x0:550.00, y0:698.00, x1:578.00, y1:709.00)",
+                "'Rate %': (x0:173.00, y0:721.00, x1:213.00, y1:732.00)",
+                "'Amount': (x0:253.00, y0:721.00, x1:298.00, y1:732.00)",
+                "'Rate %': (x0:337.00, y0:721.00, x1:377.00, y1:732.00)",
+                "'Amount': (x0:414.00, y0:721.00, x1:459.00, y1:732.00)",
+                "'Rate %': (x0:496.00, y0:721.00, x1:536.00, y1:732.00)",
+                "'Amount': (x0:573.00, y0:721.00, x1:618.00, y1:732.00)",
+                "'HSN Code': (x0:67.00, y0:725.00, x1:126.00, y1:736.00)",
+                "'Cess': (x0:675.00, y0:725.00, x1:704.00, y1:736.00)",
+                "'Total Tax Value': (x0:755.00, y0:725.00, x1:843.00, y1:736.00)",
+                "'996819': (x0:76.00, y0:739.00, x1:116.00, y1:750.00)",
+                "'9.00': (x0:182.00, y0:739.00, x1:205.00, y1:750.00)",
+                "'3.66': (x0:263.00, y0:739.00, x1:286.00, y1:750.00)",
+                "'9.00': (x0:345.00, y0:739.00, x1:368.00, y1:750.00)",
+                "'3.66': (x0:425.00, y0:739.00, x1:448.00, y1:750.00)",
+                "'0.00': (x0:504.00, y0:739.00, x1:527.00, y1:750.00)",
+                "'0.00': (x0:583.00, y0:739.00, x1:606.00, y1:750.00)",
+                "'0.00': (x0:678.00, y0:739.00, x1:701.00, y1:750.00)",
+                "'7.32': (x0:788.00, y0:739.00, x1:811.00, y1:750.00)",
+                "'64041190': (x0:69.00, y0:763.00, x1:122.00, y1:774.00)",
+                "'9.00': (x0:181.00, y0:763.00, x1:204.00, y1:774.00)",
+                "'224.92': (x0:257.00, y0:763.00, x1:294.00, y1:774.00)",
+                "'9.00': (x0:345.00, y0:763.00, x1:368.00, y1:774.00)",
+                "'224.92': (x0:418.00, y0:763.00, x1:455.00, y1:774.00)",
+                "'0.00': (x0:504.00, y0:763.00, x1:527.00, y1:774.00)",
+                "'0.00': (x0:583.00, y0:763.00, x1:606.00, y1:774.00)",
+                "'0.00': (x0:678.00, y0:763.00, x1:701.00, y1:774.00)",
+                "'449.84': (x0:781.00, y0:763.00, x1:818.00, y1:774.00)",
+                "'Total Tax': (x0:30.00, y0:790.00, x1:83.00, y1:801.00)",
+                "'228.58': (x0:257.00, y0:796.00, x1:294.00, y1:807.00)",
+                "'228.58': (x0:418.00, y0:796.00, x1:455.00, y1:807.00)",
+                "'0.00': (x0:583.00, y0:796.00, x1:606.00, y1:807.00)",
+                "'0.00': (x0:678.00, y0:796.00, x1:701.00, y1:807.00)",
+                "'457.16': (x0:780.00, y0:796.00, x1:817.00, y1:807.00)",
+                "'Total Invoice Value': (x0:30.00, y0:816.00, x1:139.00, y1:827.00)",
+                "'2997.0': (x0:781.00, y0:819.00, x1:818.00, y1:830.00)",
+                "'Total in Words : Two Thousand Nine Hundred and Ninty Seven Rupees Only': (x0:30.00, y0:838.00, x1:464.00, y1:849.00)",
+                "'1. Products being sent under this invoice are for personal consumption of the customer and not for re-sale or  commercial purposes.': (x0:33.00, y0:855.00, x1:733.00, y1:866.00)",
+                "'E. & O.E.': (x0:33.00, y0:896.00, x1:83.00, y1:907.00)",
+                "'An Electronic document issued in accordance with the provisions of the Information Technology Act, 2000 (21 of 2000)': (x0:33.00, y0:924.00, x1:662.00, y1:935.00)",
+                "'Principal place of business: Reliance Retail Ltd, Reliance Corporate Park, 5, TTC industrial Area, Thane Belapur Road, Ghansoli,': (x0:45.00, y0:949.00, x1:731.00, y1:960.00)",
+                "'Page 1 of': (x0:781.00, y0:958.00, x1:832.00, y1:969.00)",
+                "'1': (x0:833.00, y0:958.00, x1:843.00, y1:969.00)",
+                "'400701 Navi Mumbai': (x0:45.00, y0:963.00, x1:158.00, y1:974.00)",
+                "'Regd Office: 3rd floor, Court House, Lokmanya Tilak Marg, Dhobi Talao, Mumbai 400002': (x0:45.00, y0:978.00, x1:519.00, y1:989.00)",
+                "'CIN: U01100MH1999PLC120563': (x0:45.00, y0:991.00, x1:224.00, y1:1002.00)",
+                "'www.relianceretail.com': (x0:386.00, y0:991.00, x1:509.00, y1:1002.00)"
+            ];
+
+            // Clear existing data
+            tableCoordinates = [];
+            textCoordinates = [];
+
+            // Parse table coordinates
+            sampleTableData.forEach(coordStr => {
+                const coords = parseCoordinateString(coordStr);
+                if (coords) {
+                    tableCoordinates.push(coords);
+                }
+            });
+
+            // Parse text coordinates
+            sampleTextData.forEach(textStr => {
+                const coords = parseTextCoordinates(textStr);
+                if (coords) {
+                    textCoordinates.push(coords);
+                }
+            });
+
+            redrawCanvas();
+        }
+
+        function redrawCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw table coordinates as green boxes
+            tableCoordinates.forEach(coord => {
+                drawBox(coord.x1, coord.y1, coord.x2, coord.y2, 'rgb(0, 255, 0)', 0.3);
+            });
+            
+            // Draw text coordinates as red boxes
+            textCoordinates.forEach(coord => {
+                drawBox(coord.x1, coord.y1, coord.x2, coord.y2, 'rgb(255, 0, 0)', 0.3);
+            });
+        }
+
+        // Initialize canvas on page load
+        window.onload = function() {
+            initCanvas();
+        };
+    </script>
+    </head>
+    <body>
+        Source	Width (px)	Height (px)	Aspect Ratio (W/H)
+PDF (Green)	556	657	≈ 0.846
+XML (Red)	825	967	≈ 0.853
+    </body>
+</body>
+</html>
